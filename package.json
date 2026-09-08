@@ -1,0 +1,24 @@
+{
+  "name": "tienda-inventario",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Tienda con catálogo, carrito, pedidos por WhatsApp y control de stock",
+  "scripts": {
+    "install-all": "npm install --prefix server && npm install --prefix client",
+    "dev": "concurrently -n API,WEB -c blue,green \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build": "npm run build --prefix client",
+    "start": "npm run start --prefix server"
+  },
+  "dependencies": {
+    "@vercel/blob": "^0.27.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "multer": "^2.0.1",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
