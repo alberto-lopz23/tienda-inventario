@@ -60,7 +60,7 @@ router.post(
       }
       const result = await tx.run(
         `INSERT INTO orders (customer_name, phone, items, total_cents, status, note)
-         VALUES (?, ?, ?, ?, 'pendiente', ?)`,
+         VALUES (?, ?, ?, ?, 'pendiente', ?) RETURNING id`,
         [
           String(customer_name).trim(),
           String(phone || ''),

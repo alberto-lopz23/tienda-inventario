@@ -88,7 +88,7 @@ router.post(
     }
     const result = await db.run(
       `INSERT INTO products (name, description, price_cents, category, image, stock, low_stock_threshold, requires_installation, installation_price_cents, active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1) RETURNING id`,
       [
         String(name).trim(),
         String(description || ''),

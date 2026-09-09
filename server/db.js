@@ -34,18 +34,14 @@ function makeQuerier(query) {
       return res.rows[0];
     },
     async run(text, params = []) {
-      let t = text;
-      if (/^\s*INSERT INTO/i.test(t) && !/RETURNING/i.test(t)) t += ' RETURNING id';
-      const res = await query(convertPlaceholders(t), params);
+      const res = await query(convertPlaceholders(text), params);
       return { lastInsertRowid: res.rows && res.rows[0] ? res.rows[0].id : undefined };
     }
   };
 }
 
 async function rawRun(text, params = []) {
-  let t = text;
-  if (/^\s*INSERT INTO/i.test(t) && !/RETURNING/i.test(t)) t += ' RETURNING id';
-  const res = await pool.query(convertPlaceholders(t), params);
+  const res = await pool.query(convertPlaceholders(text), params);
   return { lastInsertRowid: res.rows && res.rows[0] ? res.rows[0].id : undefined };
 }
 
@@ -125,7 +121,7 @@ async function seed() {
       await rawRun(
         `INSERT INTO products (name, description, price_cents, category, image, stock, low_stock_threshold, requires_installation, installation_price_cents, active)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-        p
+        [...p, 0, 0]
       );
     }
   }
