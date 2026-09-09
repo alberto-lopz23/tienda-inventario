@@ -50,8 +50,11 @@ Vercel es serverless, así que este proyecto usa una **base de datos externa (Po
 3. En Vercel, agrega las variables de entorno del proyecto:
    - `DATABASE_URL` → la cadena de conexión de Postgres (obligatoria).
    - `BLOB_READ_WRITE_TOKEN` → token de Vercel Blob (opcional, pero sin él las imágenes se guardan como data URL en la BD).
+   - Marca que apliquen a **Production y Preview**, y haz **redeploy** después de agregarlas.
 4. Importa el repositorio en Vercel (framework: Other). `vercel.json` ya configura build, instalación y rewrites.
 5. Despliega. El catálogo, el admin y la API quedan en el mismo dominio.
+
+> Para diagnosticar la conexión visita **`/api/health`**: responde `{ ok: true }` si la BD responde, o el error concreto si no.
 
 > ⚠️ En producción cambia la contraseña por defecto `admin123` en **Configuración**.
 

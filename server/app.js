@@ -11,6 +11,7 @@ import productRoutes from './routes/products.js';
 import movementRoutes from './routes/movements.js';
 import orderRoutes from './routes/orders.js';
 import configRoutes from './routes/config.js';
+import { db } from './db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -50,6 +51,24 @@ app.use('/api/products', productRoutes);
 app.use('/api/admin/movements', movementRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/admin/orders', orderRoutes);
+
+app.get('/api/health', async (req, res) => {
+  const info = {
+    ok: false,
+    has_url: !!process.env.DATABASE_URL,
+    url_host: process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).host : null,
+    blob: !!process.env.BLOB_READ_WRITE_TOKEN,
+    node: process.version
+  };
+  try {
+    const r = await db.get('SELECT 1 AS ok');
+    info.ok = r && r.ok === 1;
+    res.json(info);
+  } catch (err) {
+    info.error = err.message;
+    res.status(500).json(info);
+  }
+});
 
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'No encontrado' });

@@ -2,15 +2,13 @@ import 'dotenv/config';
 import pg from 'pg';
 import { scryptSync, randomBytes, randomUUID } from 'crypto';
 
-if (!process.env.DATABASE_URL) {
-  console.error('❌ Falta la variable de entorno DATABASE_URL (conexión Postgres, ej. Neon).');
-  throw new Error('DATABASE_URL no definida');
-}
-
 const { Pool } = pg;
 
+let rawUrl = (process.env.DATABASE_URL || '').trim();
+rawUrl = rawUrl.replace(/(&|\?)channel_binding=[^&\s]+/g, (m, p1) => (p1 === '?' ? '' : '&'));
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: rawUrl || undefined,
   ssl: { rejectUnauthorized: false },
   max: 3,
   connectionTimeoutMillis: 10000,
@@ -21,6 +19,9 @@ function convertPlaceholders(text) {
   let n = 0;
   return text.replace(/\?/g, () => `$${++n}`);
 }
+
+const MISSING_URL_MSG =
+  'Falta DATABASE_URL. Configúrala en Vercel (Settings → Environment Variables) o crea server/.env para correr local.';
 
 function makeQuerier(query) {
   return {
@@ -41,26 +42,35 @@ function makeQuerier(query) {
   };
 }
 
-export const db = makeQuerier((text, params) => pool.query(text, params));
-
-export async function transaction(fn) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const tx = makeQuerier((text, params) => client.query(text, params));
-    const result = await fn(tx);
-    await client.query('COMMIT');
-    return result;
-  } catch (err) {
-    try {
-      await client.query('ROLLBACK');
-    } catch {}
-    throw err;
-  } finally {
-    client.release();
-  }
+async function rawRun(text, params = []) {
+  let t = text;
+  if (/^\s*INSERT INTO/i.test(t) && !/RETURNING/i.test(t)) t += ' RETURNING id';
+  const res = await pool.query(convertPlaceholders(t), params);
+  return { lastInsertRowid: res.rows && res.rows[0] ? res.rows[0].id : undefined };
 }
-db.transaction = transaction;
+
+async function rawGet(text, params = []) {
+  const res = await pool.query(convertPlaceholders(text), params);
+  return res.rows[0];
+}
+
+async function setConfig(key, value) {
+  await rawRun('INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value', [
+    key,
+    String(value)
+  ]);
+}
+
+export async function getConfig(key) {
+  const row = await rawGet('SELECT value FROM config WHERE key = ?', [key]);
+  return row ? row.value : null;
+}
+
+export async function createAdminToken() {
+  const token = randomUUID();
+  await setConfig('admin_token', token);
+  return token;
+}
 
 export function hashPassword(password) {
   const salt = randomBytes(16);
@@ -75,30 +85,12 @@ export function verifyPassword(password, stored) {
   return test.toString('hex') === hash;
 }
 
-async function setConfig(key, value) {
-  await db.run('INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value', [
-    key,
-    String(value)
-  ]);
-}
-
-export async function getConfig(key) {
-  const row = await db.get('SELECT value FROM config WHERE key = ?', [key]);
-  return row ? row.value : null;
-}
-
-export async function createAdminToken() {
-  const token = randomUUID();
-  await setConfig('admin_token', token);
-  return token;
-}
-
 async function seed() {
   if (!(await getConfig('shop_name'))) await setConfig('shop_name', 'Evolution Garage');
   if (!(await getConfig('admin_password_hash'))) await setConfig('admin_password_hash', hashPassword('admin123'));
   if (!(await getConfig('whatsapp_number'))) await setConfig('whatsapp_number', '');
 
-  const countRow = await db.get('SELECT COUNT(*)::int AS c FROM products');
+  const countRow = await rawGet('SELECT COUNT(*)::int AS c FROM products');
   if (countRow.c === 0) {
     const demo = [
       ['Cera de carnaúba premium', 'Brillo profundo y protección de 3 meses. Fácil de aplicar a mano.', 14900, 'Ceras y abrillantadores', '', 15, 5],
@@ -130,7 +122,7 @@ async function seed() {
       ['Desodorante automotriz premium', 'Aroma duradero que impregna toda la cabina.', 7000, 'Interior', '', 22, 5]
     ];
     for (const p of demo) {
-      await db.run(
+      await rawRun(
         `INSERT INTO products (name, description, price_cents, category, image, stock, low_stock_threshold, requires_installation, installation_price_cents, active)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
         p
@@ -139,13 +131,15 @@ async function seed() {
   }
 
   const setInstall = (cost, name) =>
-    db.run('UPDATE products SET requires_installation = 1, installation_price_cents = ? WHERE name = ?', [cost, name]);
+    rawRun('UPDATE products SET requires_installation = 1, installation_price_cents = ? WHERE name = ?', [cost, name]);
   await setInstall(45000, 'Lavadora a presión eléctrica 1600W');
   await setInstall(120000, 'Sellador cerámico 9H');
   await setInstall(25000, 'Compresor de aire portátil');
 }
 
 async function init() {
+  if (!rawUrl) throw new Error(MISSING_URL_MSG);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS products (
       id SERIAL PRIMARY KEY,
@@ -194,4 +188,38 @@ async function init() {
   await seed();
 }
 
-await init();
+let initPromise = null;
+function ensureInit() {
+  if (!initPromise) {
+    initPromise = init().catch((err) => {
+      initPromise = null;
+      throw err;
+    });
+  }
+  return initPromise;
+}
+
+export const db = makeQuerier(async (text, params) => {
+  await ensureInit();
+  return pool.query(text, params);
+});
+
+export async function transaction(fn) {
+  await ensureInit();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const tx = makeQuerier((text, params) => client.query(text, params));
+    const result = await fn(tx);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {}
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+db.transaction = transaction;
