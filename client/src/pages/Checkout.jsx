@@ -63,6 +63,7 @@ export default function Checkout() {
           phone: phone.trim(),
           items: items.map((i) => ({
             product_id: i.product_id,
+            name: i.name,
             quantity: i.quantity,
             price_cents: i.price_cents,
             with_installation: i.with_installation,
