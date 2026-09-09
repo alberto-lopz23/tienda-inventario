@@ -12,12 +12,20 @@ const STATUS_COLOR = {
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
+  const [products, setProducts] = useState([]);
   const [filter, setFilter] = useState('');
   const [expanded, setExpanded] = useState(null);
   const [notice, setNotice] = useState('');
 
+  const productMap = Object.fromEntries(products.map((p) => [p.id, p.name]));
+
   async function load() {
-    setOrders(await api(`/admin/orders${filter ? `?status=${filter}` : ''}`));
+    const [o, p] = await Promise.all([
+      api(`/admin/orders${filter ? `?status=${filter}` : ''}`),
+      api('/products/admin/list')
+    ]);
+    setOrders(o);
+    setProducts(p);
   }
 
   useEffect(() => {
@@ -77,7 +85,7 @@ export default function Orders() {
                         <tr key={idx}>
                           <td data-label="Cant.">{it.quantity}×</td>
                           <td data-label="Producto">
-                            {it.name}
+                            {it.name || productMap[it.product_id] || `Producto #${it.product_id}`}
                             {it.with_installation && (
                               <span className="muted" style={{ fontSize: 12 }}>
                                 {' '}
