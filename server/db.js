@@ -140,8 +140,8 @@ async function seed() {
 async function init() {
   if (!rawUrl) throw new Error(MISSING_URL_MSG);
 
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS products (
+  const statements = [
+    `CREATE TABLE IF NOT EXISTS products (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       description TEXT DEFAULT '',
@@ -154,18 +154,16 @@ async function init() {
       installation_price_cents INTEGER NOT NULL DEFAULT 0,
       active INTEGER NOT NULL DEFAULT 1,
       created_at TIMESTAMPTZ DEFAULT now()
-    );
-
-    CREATE TABLE IF NOT EXISTS movements (
+    )`,
+    `CREATE TABLE IF NOT EXISTS movements (
       id SERIAL PRIMARY KEY,
       product_id INTEGER NOT NULL REFERENCES products(id),
       type TEXT NOT NULL,
       quantity INTEGER NOT NULL DEFAULT 0,
       note TEXT DEFAULT '',
       created_at TIMESTAMPTZ DEFAULT now()
-    );
-
-    CREATE TABLE IF NOT EXISTS orders (
+    )`,
+    `CREATE TABLE IF NOT EXISTS orders (
       id SERIAL PRIMARY KEY,
       customer_name TEXT NOT NULL,
       phone TEXT DEFAULT '',
@@ -174,13 +172,16 @@ async function init() {
       status TEXT NOT NULL DEFAULT 'pendiente',
       note TEXT DEFAULT '',
       created_at TIMESTAMPTZ DEFAULT now()
-    );
-
-    CREATE TABLE IF NOT EXISTS config (
+    )`,
+    `CREATE TABLE IF NOT EXISTS config (
       key TEXT PRIMARY KEY,
       value TEXT
-    );
-  `);
+    )`
+  ];
+
+  for (const st of statements) {
+    await pool.query(st);
+  }
 
   await pool.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS requires_installation INTEGER NOT NULL DEFAULT 0');
   await pool.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS installation_price_cents INTEGER NOT NULL DEFAULT 0');

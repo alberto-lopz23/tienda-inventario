@@ -63,6 +63,16 @@ app.get('/api/health', async (req, res) => {
   try {
     const r = await db.get('SELECT 1 AS ok');
     info.ok = r && r.ok === 1;
+    info.tables = {};
+    for (const table of ['products', 'movements', 'orders', 'config']) {
+      const cols = await db.all(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = ? AND table_schema = 'public' ORDER BY ordinal_position",
+        [table]
+      );
+      info.tables[table] = cols.map((c) => c.column_name);
+    }
+    const probe = await db.get('SELECT id FROM products ORDER BY id LIMIT 1');
+    info.id_probe = probe ? `ok (primera fila id=${probe.id})` : 'ok (tabla vacía)';
     res.json(info);
   } catch (err) {
     info.error = err.message;
