@@ -9,15 +9,22 @@ export default function Catalog() {
   const [category, setCategory] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   async function load() {
     const params = new URLSearchParams();
     if (category) params.set('category', category);
     if (search) params.set('q', search);
-    const [p, c] = await Promise.all([api(`/products?${params}`), api('/products/categories')]);
-    setProducts(p);
-    setCategories(c);
-    setLoading(false);
+    try {
+      const [p, c] = await Promise.all([api(`/products?${params}`), api('/products/categories')]);
+      setProducts(p);
+      setCategories(c);
+      setError('');
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -49,6 +56,8 @@ export default function Catalog() {
         </div>
         {loading ? (
           <div className="empty-state">Cargando...</div>
+        ) : error ? (
+          <div className="alert alert-error" style={{ margin: '20px 0' }}>{error}</div>
         ) : products.length === 0 ? (
           <div className="empty-state">No hay productos que coincidan.</div>
         ) : (

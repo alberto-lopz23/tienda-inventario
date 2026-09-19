@@ -13,6 +13,7 @@ function normalize(raw) {
     quantity: Math.max(1, Math.round(Number(i.quantity) || 1)),
     requires_installation: !!i.requires_installation,
     installation_price_cents: i.installation_price_cents || 0,
+    stock: i.stock,
     with_installation: false
   }));
 }
@@ -36,7 +37,9 @@ export function CartProvider({ children }) {
       const existing = prev.find((i) => i.product_id === product.id);
       if (existing) {
         return prev.map((i) =>
-          i.product_id === product.id ? { ...i, quantity: Math.min(i.quantity + qty, product.stock) } : i
+          i.product_id === product.id
+            ? { ...i, quantity: Math.min(i.quantity + qty, product.stock), stock: product.stock }
+            : i
         );
       }
       const item = {
@@ -47,6 +50,7 @@ export function CartProvider({ children }) {
         quantity: Math.min(qty, product.stock),
         requires_installation: !!product.requires_installation,
         installation_price_cents: product.installation_price_cents || 0,
+        stock: product.stock,
         with_installation: false
       };
       return [...prev, item];
@@ -63,7 +67,11 @@ export function CartProvider({ children }) {
     setItems((prev) =>
       quantity <= 0
         ? prev.filter((i) => i.product_id !== product_id)
-        : prev.map((i) => (i.product_id === product_id ? { ...i, quantity } : i))
+        : prev.map((i) =>
+            i.product_id === product_id
+              ? { ...i, quantity: i.stock > 0 ? Math.min(quantity, i.stock) : Math.max(1, quantity) }
+              : i
+          )
     );
   };
 

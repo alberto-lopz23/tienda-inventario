@@ -9,17 +9,19 @@ export default function Checkout() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
-  const [shopPhone, setShopPhone] = useState('');
+  const [shop, setShop] = useState({ name: '', phone: '' });
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    api('/shop').then((d) => d && setShopPhone(d.whatsapp_number)).catch(() => {});
+    api('/shop')
+      .then((d) => d && setShop({ name: d.shop_name, phone: d.whatsapp_number }))
+      .catch(() => {});
   }, []);
 
   function buildMessage(waPhone) {
     const lines = [
-      `🎁 Hola, quiero hacer un pedido en Evolution Garage:`,
+      `🎁 Hola, quiero hacer un pedido en ${shop.name || 'Evolution Garage'}:`,
       '',
       '*MI PEDIDO:*',
       ...items.map((i) => {
@@ -50,7 +52,7 @@ export default function Checkout() {
       setError('El teléfono parece inválido');
       return;
     }
-    if (!shopPhone) {
+    if (!shop.phone) {
       setError('La tienda aún no configura su número de WhatsApp. Avísale al administrador.');
       return;
     }
@@ -74,7 +76,7 @@ export default function Checkout() {
         })
       });
       clear();
-      window.open(whatsappLink(shopPhone, buildMessage(phone)), '_blank');
+      window.open(whatsappLink(shop.phone, buildMessage(phone)), '_blank');
     } catch (e) {
       setError(e.message);
     } finally {

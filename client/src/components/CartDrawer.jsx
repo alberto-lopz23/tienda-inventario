@@ -50,7 +50,7 @@ export default function CartDrawer() {
                       −
                     </button>
                     <span>{item.quantity}</span>
-                    <button className="qty-btn" onClick={() => updateQty(item.product_id, item.quantity + 1)}>
+                    <button className="qty-btn" disabled={item.stock > 0 && item.quantity >= item.stock} onClick={() => updateQty(item.product_id, item.quantity + 1)}>
                       +
                     </button>
                   </div>

@@ -16,12 +16,41 @@ const BLANK_FORM = {
 
 const emptyForm = () => ({ ...BLANK_FORM });
 
+async function compressImage(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1600;
+      let { width, height } = img;
+      if (width <= MAX && height <= MAX) return resolve(null);
+      const scale = Math.min(1, MAX / Math.max(width, height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) => resolve(blob ? new File([blob], 'photo.jpg', { type: 'image/jpeg' }) : null),
+        'image/jpeg',
+        0.85
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+    img.src = url;
+  });
+}
+
 export default function Products() {
   const [products, setProducts] = useState([]);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm());
   const [show, setShow] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [search, setSearch] = useState('');
@@ -72,10 +101,24 @@ export default function Products() {
   async function uploadImage(e) {
     const file = e.target.files[0];
     if (!file) return;
-    const fd = new FormData();
-    fd.append('image', file);
-    const data = await api('/admin/upload', { method: 'POST', body: fd });
-    setForm((f) => ({ ...f, image: data.url }));
+    try {
+      setError('');
+      setNotice('');
+      setUploading(true);
+      let upload = null;
+      if (file.type.startsWith('image/')) {
+        upload = await compressImage(file);
+      }
+      const fd = new FormData();
+      fd.append('image', upload || file);
+      const data = await api('/admin/upload', { method: 'POST', body: fd });
+      setForm((f) => ({ ...f, image: data.url }));
+      setNotice('Imagen subida ✓');
+    } catch (err) {
+      setError(err.message || 'No se pudo subir la imagen');
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function save(e) {
@@ -283,8 +326,8 @@ export default function Products() {
                 <span>Imagen</span>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                   <input value={form.image} placeholder="URL de la imagen" onChange={(e) => setForm({ ...form, image: e.target.value })} />
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => fileRef.current.click()}>
-                    Subir archivo
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => fileRef.current.click()} disabled={uploading}>
+                    {uploading ? 'Subiendo...' : 'Subir archivo'}
                   </button>
                   <input ref={fileRef} type="file" accept="image/*" hidden onChange={uploadImage} />
                 </div>

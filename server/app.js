@@ -21,10 +21,15 @@ app.use(express.json());
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 4 * 1024 * 1024 },
+  limits: { fileSize: 8 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const ok = /^image\/(jpeg|png|gif|webp)$/.test(file.mimetype);
-    cb(ok ? null : new Error('Solo se permiten imágenes'), ok);
+    const ok = /^image\/(jpeg|png|gif|webp|avif)$/.test(file.mimetype);
+    if (!ok) {
+      const err = new Error('Solo se permiten imágenes (JPG, PNG, GIF, WEBP, AVIF)');
+      err.status = 400;
+      return cb(err, false);
+    }
+    cb(null, true);
   }
 });
 
@@ -102,6 +107,9 @@ if (!process.env.VERCEL) {
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ error: 'La imagen es demasiado grande (máximo 8 MB)' });
+  }
   res.status(err.status || 500).json({ error: err.message || 'Error de servidor' });
 });
 
