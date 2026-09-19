@@ -2,9 +2,10 @@ import { money } from '../api.js';
 import { useCart } from '../context/CartContext.jsx';
 
 export default function ProductCard({ product }) {
-  const { add } = useCart();
+  const { add, remove, items } = useCart();
   const out = product.stock <= 0;
   const low = !out && product.stock <= product.low_stock_threshold;
+  const inCart = items.some((i) => i.product_id === product.id);
 
   return (
     <div className="card">
@@ -25,9 +26,15 @@ export default function ProductCard({ product }) {
         ) : (
           <span className="stock-status stock-ok">Disponible</span>
         )}
-        <button className="btn btn-primary btn-block" disabled={out} onClick={() => add(product)}>
-          Agregar al carrito
-        </button>
+        {inCart ? (
+          <button className="btn btn-success btn-block" onClick={() => remove(product.id)}>
+            ✓ Quitar del carrito
+          </button>
+        ) : (
+          <button className="btn btn-primary btn-block" disabled={out} onClick={() => add(product)}>
+            Agregar al carrito
+          </button>
+        )}
       </div>
     </div>
   );

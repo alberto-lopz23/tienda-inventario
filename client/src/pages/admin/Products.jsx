@@ -329,6 +329,11 @@ export default function Products() {
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => fileRef.current.click()} disabled={uploading}>
                     {uploading ? 'Subiendo...' : 'Subir archivo'}
                   </button>
+                  {form.image && (
+                    <button type="button" className="btn btn-danger btn-sm" onClick={() => setForm({ ...form, image: '' })} disabled={uploading}>
+                      Quitar imagen
+                    </button>
+                  )}
                   <input ref={fileRef} type="file" accept="image/*" hidden onChange={uploadImage} />
                 </div>
                 {form.image && (

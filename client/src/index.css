@@ -142,6 +142,15 @@ select option {
   background: var(--primary-dark);
 }
 
+.btn-success {
+  background: #25d366;
+  color: #fff;
+}
+
+.btn-success:hover {
+  background: #1eb959;
+}
+
 .btn-ghost {
   background: transparent;
   color: var(--text-soft);

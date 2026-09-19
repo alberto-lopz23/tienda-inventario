@@ -36,7 +36,7 @@ export default function Checkout() {
       `*TOTAL: ${money(totalCents)}*`,
       ''
     ];
-    if (waPhone) lines.push(`📞 Mi teléfono: ${waPhone}`);
+    lines.push(`📞 Mi teléfono: ${waPhone}`);
     if (name) lines.push(`👤 Cliente: ${name}`);
     if (note) lines.push(`📝 Nota: ${note}`);
     return lines.join('\n');
@@ -48,7 +48,11 @@ export default function Checkout() {
       setError('Escribe tu nombre');
       return;
     }
-    if (phone.trim() && !/^[+\d][\d\s-]{6,}$/.test(phone.trim())) {
+    if (!phone.trim()) {
+      setError('Escribe tu teléfono');
+      return;
+    }
+    if (!/^[+\d][\d\s-]{6,}$/.test(phone.trim())) {
       setError('El teléfono parece inválido');
       return;
     }
@@ -132,11 +136,11 @@ export default function Checkout() {
               <div className="form-grid">
                 <div className="form-field">
                   <span>Nombre completo *</span>
-                  <input value={name} placeholder="Tu nombre" onChange={(e) => setName(e.target.value)} />
+                  <input value={name} placeholder="Tu nombre" onChange={(e) => setName(e.target.value)} required />
                 </div>
                 <div className="form-field">
-                  <span>Tu teléfono</span>
-                  <input value={phone} placeholder="Para que te contacten" onChange={(e) => setPhone(e.target.value)} />
+                  <span>Tu teléfono *</span>
+                  <input value={phone} placeholder="Para que te contacten" onChange={(e) => setPhone(e.target.value)} required />
                 </div>
                 <div className="form-field" style={{ gridColumn: '1 / -1' }}>
                   <span>Nota (opcional)</span>

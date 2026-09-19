@@ -26,7 +26,7 @@ export default function Header() {
         <Link to="/admin/login" className="btn btn-ghost btn-sm">
           Admin
         </Link>
-        <button className="btn btn-primary cart-button" onClick={() => setOpen(true)}>
+        <button className={`btn ${count > 0 ? 'btn-success' : 'btn-primary'} cart-button`} onClick={() => setOpen(true)}>
           🛒 Carrito
           {count > 0 && <span className="cart-badge">{count}</span>}
         </button>
