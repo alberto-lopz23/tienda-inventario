@@ -131,6 +131,9 @@ export default function Products() {
       const price_cents = Math.round(parseFloat(form.price) * 100);
       if (!form.name.trim()) throw new Error('Escribe el nombre del producto');
       if (!(price_cents >= 0)) throw new Error('Precio inválido');
+      if (dupCategory) {
+        throw new Error(`La categoría "${dupCategory}" ya existe. Elígela del menú, no la dupliques.`);
+      }
       const installation_price_cents = form.requires_installation
         ? Math.round(parseFloat(form.installation_price || '0') * 100)
         : 0;
@@ -172,6 +175,9 @@ export default function Products() {
   }
 
   const categories = [...new Set(products.map((p) => p.category).filter(Boolean))].sort();
+  const dupCategory = form.categoryMode === 'new'
+    ? categories.find((c) => c.trim().toLowerCase() === String(form.category || '').trim().toLowerCase()) || ''
+    : '';
   const filtered = products.filter((p) => {
     const q = search.trim().toLowerCase();
     if (q && !p.name.toLowerCase().includes(q) && !(p.category || '').toLowerCase().includes(q)) return false;
@@ -315,12 +321,20 @@ export default function Products() {
 <div className="form-field">
                   <span>Categoría</span>
                   {form.categoryMode === 'new' ? (
-                    <input
-                      value={form.category}
-                      placeholder="Escribe la nueva categoría..."
-                      onChange={(e) => setForm({ ...form, category: e.target.value })}
-                      autoFocus
-                    />
+                    <div>
+                      <input
+                        value={form.category}
+                        placeholder="Escribe la nueva categoría..."
+                        onChange={(e) => setForm({ ...form, category: e.target.value })}
+                        autoFocus
+                        style={dupCategory ? { borderColor: 'var(--danger)' } : undefined}
+                      />
+                      {dupCategory && (
+                        <span style={{ display: 'block', marginTop: 6, color: 'var(--danger)', fontWeight: 600, fontSize: 12.5 }}>
+                          ⚠️ "{dupCategory}" ya existe. Selecciónala en el menú para no duplicarla.
+                        </span>
+                      )}
+                    </div>
                   ) : (
                     <select
                       value={[...new Set([...categories, form.category].filter(Boolean))].includes(form.category) ? form.category : ''}
