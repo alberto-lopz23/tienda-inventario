@@ -86,6 +86,8 @@ async function seed() {
   if (!(await getConfig('admin_password_hash'))) await setConfig('admin_password_hash', hashPassword('admin123'));
   if (!(await getConfig('whatsapp_number'))) await setConfig('whatsapp_number', '');
 
+  if (await getConfig('demo_seeded')) return;
+
   const countRow = await rawGet('SELECT COUNT(*)::int AS c FROM products');
   if (countRow.c === 0) {
     const demo = [
@@ -131,6 +133,8 @@ async function seed() {
   await setInstall(45000, 'Lavadora a presión eléctrica 1600W');
   await setInstall(120000, 'Sellador cerámico 9H');
   await setInstall(25000, 'Compresor de aire portátil');
+
+  await setConfig('demo_seeded', '1');
 }
 
 async function init() {
