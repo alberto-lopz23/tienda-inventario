@@ -175,8 +175,14 @@ export default function Products() {
   }
 
   const categories = [...new Set(products.map((p) => p.category).filter(Boolean))].sort();
+  const normalizeCat = (s) =>
+    String(s || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
   const dupCategory = form.categoryMode === 'new'
-    ? categories.find((c) => c.trim().toLowerCase() === String(form.category || '').trim().toLowerCase()) || ''
+    ? categories.find((c) => normalizeCat(c) === normalizeCat(form.category)) || ''
     : '';
   const filtered = products.filter((p) => {
     const q = search.trim().toLowerCase();
