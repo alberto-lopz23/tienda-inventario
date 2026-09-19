@@ -149,7 +149,10 @@ router.delete(
   asyncHandler(async (req, res) => {
     const p = await db.get('SELECT * FROM products WHERE id = ?', [req.params.id]);
     if (!p) return res.status(404).json({ error: 'Producto no encontrado' });
-    await db.run('DELETE FROM products WHERE id = ?', [p.id]);
+    await db.transaction(async (tx) => {
+      await tx.run('DELETE FROM movements WHERE product_id = ?', [p.id]);
+      await tx.run('DELETE FROM products WHERE id = ?', [p.id]);
+    });
     res.json({ ok: true });
   })
 );
