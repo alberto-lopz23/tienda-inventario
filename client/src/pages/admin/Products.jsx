@@ -6,6 +6,7 @@ const BLANK_FORM = {
   description: '',
   price: '',
   category: '',
+  categoryMode: 'existing',
   image: '',
   stock: '',
   low_stock_threshold: 5,
@@ -85,7 +86,8 @@ export default function Products() {
       low_stock_threshold: p.low_stock_threshold,
       active: p.active,
       requires_installation: p.requires_installation,
-      installation_price: p.installation_price_cents ? (p.installation_price_cents / 100).toFixed(2) : ''
+      installation_price: p.installation_price_cents ? (p.installation_price_cents / 100).toFixed(2) : '',
+      categoryMode: 'existing'
     });
     setEditing(p);
     setShow(true);
@@ -139,7 +141,7 @@ export default function Products() {
         name: form.name.trim(),
         description: form.description,
         price_cents,
-        category: form.category,
+        category: form.category.trim(),
         image: form.image,
         stock: Math.round(Number(form.stock) || 0),
         low_stock_threshold: Math.round(Number(form.low_stock_threshold) || 0),
@@ -310,10 +312,34 @@ export default function Products() {
                 <span>Precio (/100)</span>
                 <input type="number" step="0.01" min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
               </div>
-              <div className="form-field">
-                <span>Categoría</span>
-                <input value={form.category} placeholder="Ej: Ropa" onChange={(e) => setForm({ ...form, category: e.target.value })} />
-              </div>
+<div className="form-field">
+                  <span>Categoría</span>
+                  {form.categoryMode === 'new' ? (
+                    <input
+                      value={form.category}
+                      placeholder="Escribe la nueva categoría..."
+                      onChange={(e) => setForm({ ...form, category: e.target.value })}
+                      autoFocus
+                    />
+                  ) : (
+                    <select
+                      value={[...new Set([...categories, form.category].filter(Boolean))].includes(form.category) ? form.category : ''}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === '__new__') setForm({ ...form, categoryMode: 'new', category: '' });
+                        else setForm({ ...form, categoryMode: 'existing', category: v });
+                      }}
+                    >
+                      <option value="">Sin categoría</option>
+                      {[...new Set([...categories, form.category].filter(Boolean))].sort().map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                      <option value="__new__">➕ Nueva categoría...</option>
+                    </select>
+                  )}
+                </div>
               <div className="form-field">
                 <span>Stock inicial / actual</span>
                 <input type="number" min="0" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
