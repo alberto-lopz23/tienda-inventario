@@ -131,6 +131,9 @@ export default function Products() {
       const price_cents = Math.round(parseFloat(form.price) * 100);
       if (!form.name.trim()) throw new Error('Escribe el nombre del producto');
       if (!(price_cents >= 0)) throw new Error('Precio inválido');
+      if (invalidCategory) {
+        throw new Error('La categoría tiene símbolos no permitidos. Usa solo letras (con o sin tilde), números y espacios.');
+      }
       if (dupCategory) {
         throw new Error(`La categoría "${dupCategory}" ya existe. Elígela del menú, no la dupliques.`);
       }
@@ -181,6 +184,8 @@ export default function Products() {
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
+  const CATEGORY_RE = /^[\p{L}\p{N} ]+$/u;
+  const invalidCategory = form.categoryMode === 'new' && !!form.category.trim() && !CATEGORY_RE.test(form.category.trim());
   const dupCategory = form.categoryMode === 'new'
     ? categories.find((c) => normalizeCat(c) === normalizeCat(form.category)) || ''
     : '';
@@ -333,8 +338,13 @@ export default function Products() {
                         placeholder="Escribe la nueva categoría..."
                         onChange={(e) => setForm({ ...form, category: e.target.value })}
                         autoFocus
-                        style={dupCategory ? { borderColor: 'var(--danger)' } : undefined}
+                        style={(dupCategory || invalidCategory) ? { borderColor: 'var(--danger)' } : undefined}
                       />
+                      {invalidCategory && (
+                        <span style={{ display: 'block', marginTop: 6, color: 'var(--danger)', fontWeight: 600, fontSize: 12.5 }}>
+                          ⚠️ Elimina símbolos ( ` ' - _ / . etc.). Solo letras, números y espacios.
+                        </span>
+                      )}
                       {dupCategory && (
                         <span style={{ display: 'block', marginTop: 6, color: 'var(--danger)', fontWeight: 600, fontSize: 12.5 }}>
                           ⚠️ "{dupCategory}" ya existe. Selecciónala en el menú para no duplicarla.
