@@ -11,7 +11,7 @@
     "start": "npm run start --prefix server"
   },
   "dependencies": {
-    "@vercel/blob": "^0.27.0",
+    "@vercel/blob": "^2.8.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
