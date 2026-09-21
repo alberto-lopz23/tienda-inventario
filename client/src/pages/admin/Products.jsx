@@ -25,10 +25,11 @@ async function compressImage(file) {
       URL.revokeObjectURL(url);
       const MAX = 1600;
       const MAX_BYTES = 1024 * 1024;
-      let { width, height } = img;
-      const scale = Math.min(1, MAX / Math.max(width, height));
-      let w = Math.max(1, Math.round(width * scale));
-      let h = Math.max(1, Math.round(height * scale));
+      const iw = img.naturalWidth || img.width;
+      const ih = img.naturalHeight || img.height;
+      const scale = Math.min(1, MAX / Math.max(iw, ih));
+      let w = Math.max(1, Math.round(iw * scale));
+      let h = Math.max(1, Math.round(ih * scale));
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const exportAt = (quality) =>
