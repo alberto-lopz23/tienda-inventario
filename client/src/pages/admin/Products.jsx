@@ -24,18 +24,36 @@ async function compressImage(file) {
     img.onload = () => {
       URL.revokeObjectURL(url);
       const MAX = 1600;
+      const MAX_BYTES = 1024 * 1024;
       let { width, height } = img;
-      if (width <= MAX && height <= MAX) return resolve(null);
       const scale = Math.min(1, MAX / Math.max(width, height));
+      let w = Math.max(1, Math.round(width * scale));
+      let h = Math.max(1, Math.round(height * scale));
       const canvas = document.createElement('canvas');
-      canvas.width = Math.round(width * scale);
-      canvas.height = Math.round(height * scale);
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(
-        (blob) => resolve(blob ? new File([blob], 'photo.jpg', { type: 'image/jpeg' }) : null),
-        'image/jpeg',
-        0.85
-      );
+      const ctx = canvas.getContext('2d');
+      const exportAt = (quality) =>
+        new Promise((res) => canvas.toBlob(res, 'image/jpeg', quality));
+      const draw = () => {
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(img, 0, 0, w, h);
+      };
+      draw();
+      (async () => {
+        let quality = 0.85;
+        let blob = await exportAt(quality);
+        while (blob && blob.size > MAX_BYTES && quality > 0.4) {
+          quality = Math.max(0.4, quality - 0.15);
+          blob = await exportAt(quality);
+        }
+        while (blob && blob.size > MAX_BYTES && Math.min(w, h) > 400) {
+          w = Math.max(1, Math.round(w / 2));
+          h = Math.max(1, Math.round(h / 2));
+          draw();
+          blob = await exportAt(quality);
+        }
+        resolve(blob ? new File([blob], 'photo.jpg', { type: 'image/jpeg' }) : null);
+      })();
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
@@ -101,8 +119,14 @@ export default function Products() {
   }
 
   async function uploadImage(e) {
+    if (e.target.files.length > 1) {
+      setError('Solo se puede subir una imagen por producto');
+      e.target.value = '';
+      return;
+    }
     const file = e.target.files[0];
     if (!file) return;
+    e.target.value = '';
     try {
       setError('');
       setNotice('');
@@ -115,7 +139,8 @@ export default function Products() {
       fd.append('image', upload || file);
       const data = await api('/admin/upload', { method: 'POST', body: fd });
       setForm((f) => ({ ...f, image: data.url }));
-      setNotice('Imagen subida ✓');
+      const kb = Math.max(1, Math.round((upload ? upload.size : file.size) / 1024));
+      setNotice(`Imagen subida ✓ (${kb} KB)`);
     } catch (err) {
       setError(err.message || 'No se pudo subir la imagen');
     } finally {

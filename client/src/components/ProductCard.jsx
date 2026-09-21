@@ -10,7 +10,7 @@ export default function ProductCard({ product }) {
   return (
     <div className="card">
       <div className="card-img">
-        {product.image ? <img src={product.image} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🛍️'}
+        {product.image ? <img src={product.image} alt={product.name} className="card-img-src" /> : '🛍️'}
       </div>
       <div className="card-body">
         <h3 className="card-name">{product.name}</h3>
