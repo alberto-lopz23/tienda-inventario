@@ -12,15 +12,11 @@ export default function Header() {
     api('/shop').then((d) => d && setShopName(d.shop_name)).catch(() => {});
   }, []);
 
-  const parts = shopName.trim().split(/\s+/);
-  const word = parts.length > 1 ? parts[parts.length - 1] : '';
-  const rest = parts.slice(0, parts.length > 1 ? -1 : parts.length).join(' ');
-
   return (
     <header className="header">
       <div className="container header-inner">
         <Link to="/" className="logo">
-          {rest} {word ? <em>{word}</em> : null}
+          <img src="/logoHeader.jpeg" alt={shopName} />
         </Link>
         <span className="header-spacer" />
         <Link to="/admin/login" className="btn btn-ghost btn-sm">

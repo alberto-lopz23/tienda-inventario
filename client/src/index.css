@@ -109,10 +109,27 @@ select option {
 }
 
 .logo {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 230px;
+  height: 68px;
+  flex: 0 0 230px;
+  overflow: hidden;
   font-size: 20px;
   font-weight: 800;
   color: var(--brand-white);
   letter-spacing: 0.02em;
+}
+
+.logo img {
+  display: block;
+  position: absolute;
+  top: -39px;
+  left: 0;
+  width: 230px;
+  height: auto;
+  max-height: none;
 }
 
 .logo em {
@@ -1179,7 +1196,17 @@ select option {
   }
 
   .logo {
+    width: 180px;
+    height: 56px;
+    flex-basis: 180px;
     font-size: 17px;
+  }
+
+  .logo img {
+    top: -29px;
+    left: 0;
+    width: 180px;
+    height: auto;
   }
 
   .btn {
