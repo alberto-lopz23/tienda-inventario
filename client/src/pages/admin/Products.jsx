@@ -177,7 +177,8 @@ export default function Products() {
       const urls = [];
       for (const file of files) {
         const fd = new FormData();
-        fd.append('image', file);
+        const toSend = (await compressImage(file)) || file;
+        fd.append('image', toSend, toSend.name || 'photo.jpg');
         const data = await api('/admin/upload', { method: 'POST', body: fd });
         if (data.url) urls.push(data.url);
       }
