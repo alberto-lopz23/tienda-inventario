@@ -77,7 +77,8 @@ app.post('/api/admin/upload', requireAdmin, upload.single('image'), async (req, 
     }
     res.json({ url: `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}` });
   } catch (err) {
-    res.status(500).json({ error: 'Error al subir la imagen' });
+    console.error('[upload] error:', err);
+    res.status(500).json({ error: `Error al subir la imagen: ${err.message}` });
   }
 });
 
