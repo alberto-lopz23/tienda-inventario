@@ -37,28 +37,38 @@ export default function CartDrawer() {
             return (
               <div
                 className={`cart-item ${item.requires_installation ? 'cart-item-install' : ''}`}
-                key={item.product_id}
+                key={`${item.product_id}:${item.color_id || ''}`}
               >
                 <div className="cart-item-img">
                   {item.image ? <img src={item.image} alt="" /> : '🛍️'}
                 </div>
                 <div className="cart-item-info">
                   <div className="cart-item-name">{item.name}</div>
-                  <div className="cart-item-price">{money(item.price_cents)} c/u</div>
+                  {item.color_name && (
+                    <div className="cart-item-color">
+                      <span className="color-dot-swatch" style={{ background: item.color_hex || '#888' }} /> {item.color_name}
+                    </div>
+                  )}
+                  <div className="cart-item-price">
+                    {item.list_price_cents > item.price_cents && (
+                      <span className="price-orig">{money(item.list_price_cents)}</span>
+                    )}{' '}
+                    {money(item.price_cents)} c/u
+                  </div>
                   <div className="qty-control">
-                    <button className="qty-btn" onClick={() => updateQty(item.product_id, item.quantity - 1)}>
+                    <button className="qty-btn" onClick={() => updateQty(item.product_id, item.color_id, item.quantity - 1)}>
                       −
                     </button>
                     <span>{item.quantity}</span>
-                    <button className="qty-btn" disabled={item.stock > 0 && item.quantity >= item.stock} onClick={() => updateQty(item.product_id, item.quantity + 1)}>
+                    <button className="qty-btn" disabled={item.stock > 0 && item.quantity >= item.stock} onClick={() => updateQty(item.product_id, item.color_id, item.quantity + 1)}>
                       +
                     </button>
                   </div>
                   {item.requires_installation && (
                     <button
                       className={`install-toggle ${item.with_installation ? 'on' : ''}`}
-                      onClick={() => toggleInstallation(item.product_id)}
-                      title={`Costo de instalación: ${money(item.installation_price_cents)} por unidad`}
+                      onClick={() => toggleInstallation(item.product_id, item.color_id)}
+                      title={`Instalación: ${money(item.installation_price_cents)} por unidad`}
                     >
                       {item.with_installation ? '✓' : '+'} Instalación
                       <span className="install-price">({money(item.installation_price_cents)} c/u)</span>
@@ -69,7 +79,7 @@ export default function CartDrawer() {
                   <strong>{money(itemCents + installCents)}</strong>
                   {item.with_installation && <span className="cart-item-price">incl. instalación</span>}
                 </div>
-                <button className="cart-remove" onClick={() => remove(item.product_id)} title="Quitar">
+                <button className="cart-remove" onClick={() => remove(item.product_id, item.color_id)} title="Quitar">
                   ✕
                 </button>
               </div>
@@ -82,7 +92,6 @@ export default function CartDrawer() {
               <span>Total</span>
               <span>{money(totalCents)}</span>
             </div>
-            <p className="drawer-note">El pedido se envía por WhatsApp y el stock se descuenta al confirmar.</p>
             <Link to="/checkout" className="btn btn-primary btn-block" onClick={() => setOpen(false)}>
               Finalizar compra
             </Link>

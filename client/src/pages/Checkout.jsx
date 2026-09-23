@@ -9,6 +9,7 @@ export default function Checkout() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
+  const [website, setWebsite] = useState('');
   const [shop, setShop] = useState({ name: '', phone: '' });
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
@@ -26,7 +27,7 @@ export default function Checkout() {
       '*MI PEDIDO:*',
       ...items.map((i) => {
         const itemTotal = i.price_cents * i.quantity;
-        const lines2 = [`• ${i.quantity}× ${i.name} — ${money(itemTotal)}`];
+        const lines2 = [`• ${i.quantity}× ${i.name}${i.color_name ? ` (${i.color_name})` : ''} — ${money(itemTotal)}`];
         if (i.with_installation) {
           lines2.push(`   🛠 Incluye instalación (+${money(i.installation_price_cents * i.quantity)})`);
         }
@@ -70,13 +71,16 @@ export default function Checkout() {
           items: items.map((i) => ({
             product_id: i.product_id,
             name: i.name,
+            color_id: i.color_id || null,
+            color_name: i.color_name || '',
             quantity: i.quantity,
             price_cents: i.price_cents,
             with_installation: i.with_installation,
             installation_price_cents: i.with_installation ? i.installation_price_cents : 0
           })),
           total_cents: totalCents,
-          note
+          note,
+          website
         })
       });
       clear();
@@ -145,6 +149,10 @@ export default function Checkout() {
                 <div className="form-field" style={{ gridColumn: '1 / -1' }}>
                   <span>Nota (opcional)</span>
                   <textarea value={note} placeholder="Algún detalle de tu pedido..." onChange={(e) => setNote(e.target.value)} />
+                </div>
+                <div className="form-field" style={{ position: 'absolute', left: '-9999px', top: 'auto', width: 1, height: 1, overflow: 'hidden' }} aria-hidden="true">
+                  <span>Website</span>
+                  <input type="text" value={website} tabIndex={-1} autoComplete="off" onChange={(e) => setWebsite(e.target.value)} />
                 </div>
               </div>
               {error && <div className="alert alert-error mt-8">{error}</div>}

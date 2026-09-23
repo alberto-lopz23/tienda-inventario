@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 import Catalog from './pages/Catalog.jsx';
+import ProductDetail from './pages/ProductDetail.jsx';
 import Checkout from './pages/Checkout.jsx';
 import AdminLogin from './pages/AdminLogin.jsx';
 import AdminLayout from './pages/admin/AdminLayout.jsx';
@@ -13,6 +14,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Catalog />} />
+      <Route path="/producto/:id" element={<ProductDetail />} />
       <Route path="/checkout" element={<Checkout />} />
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/admin" element={<AdminLayout />}>

@@ -45,9 +45,6 @@ export default function AdminLogin() {
         <button className="btn btn-primary btn-block mt-8" disabled={loading}>
           {loading ? 'Entrando...' : 'Entrar'}
         </button>
-        <p className="muted" style={{ fontSize: 12, marginTop: 12, textAlign: 'center' }}>
-          Contraseña inicial: <strong>admin123</strong> (cámbiala en Configuración)
-        </p>
       </form>
     </div>
   );

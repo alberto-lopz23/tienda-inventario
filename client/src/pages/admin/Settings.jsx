@@ -31,8 +31,8 @@ export default function Settings() {
   async function savePassword(e) {
     e.preventDefault();
     setError('');
-    if (newPassword.length < 4) {
-      setError('La contraseña debe tener al menos 4 caracteres');
+    if (newPassword.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres');
       return;
     }
     await api('/config/password', { method: 'POST', body: JSON.stringify({ password: newPassword }) });

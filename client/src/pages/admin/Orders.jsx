@@ -86,6 +86,9 @@ export default function Orders() {
                           <td data-label="Cant.">{it.quantity}×</td>
                           <td data-label="Producto">
                             {it.name || productMap[it.product_id] || `Producto #${it.product_id}`}
+                            {it.color_name && (
+                              <span className="badge badge-color" style={{ marginLeft: 6 }}>{it.color_name}</span>
+                            )}
                             {it.with_installation && (
                               <span className="muted" style={{ fontSize: 12 }}>
                                 {' '}

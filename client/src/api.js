@@ -16,6 +16,13 @@ export async function api(path, options = {}) {
   return data;
 }
 
+export const salePriceCents = (priceCents, discountPercent = 0) => {
+  const d = Math.max(0, Math.min(100, Math.round(Number(discountPercent) || 0)));
+  return Math.round((Number(priceCents) || 0) * (100 - d) / 100);
+};
+
+export const salePrice = (priceCents, discountPercent = 0) => money(salePriceCents(priceCents, discountPercent));
+
 export const money = (cents) =>
   new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 }).format(
     (cents || 0) / 100

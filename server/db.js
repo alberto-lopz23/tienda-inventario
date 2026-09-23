@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import pg from 'pg';
-import { scryptSync, randomBytes, randomUUID } from 'crypto';
+import { scryptSync, randomBytes, randomUUID, timingSafeEqual } from 'crypto';
 
 const { Pool } = pg;
 
@@ -77,13 +77,21 @@ export function hashPassword(password) {
 export function verifyPassword(password, stored) {
   if (!stored || !stored.includes('$')) return false;
   const [salt, hash] = String(stored).split('$');
-  const test = scryptSync(String(password), Buffer.from(salt, 'hex'), 64);
-  return test.toString('hex') === hash;
+  const test = scryptSync(String(password), Buffer.from(salt, 'hex'), 64).toString('hex');
+  const a = Buffer.from(hash, 'hex');
+  const b = Buffer.from(test, 'hex');
+  return a.length === b.length && a.length > 0 && timingSafeEqual(a, b);
 }
 
 async function seed() {
   if (!(await getConfig('shop_name'))) await setConfig('shop_name', 'Evolution Garage');
-  if (!(await getConfig('admin_password_hash'))) await setConfig('admin_password_hash', hashPassword('admin123'));
+  if (!(await getConfig('admin_password_hash'))) {
+    const initial = process.env.ADMIN_PASSWORD || randomBytes(6).toString('base64url');
+    await setConfig('admin_password_hash', hashPassword(initial));
+    if (!process.env.ADMIN_PASSWORD) {
+      console.log(`\n Contraseña inicial del administrador: ${initial} (cámbiala en Configuración)\n`);
+    }
+  }
   if (!(await getConfig('whatsapp_number'))) await setConfig('whatsapp_number', '');
 
   if (await getConfig('demo_seeded')) return;
@@ -185,6 +193,18 @@ async function init() {
 
   await pool.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS requires_installation INTEGER NOT NULL DEFAULT 0');
   await pool.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS installation_price_cents INTEGER NOT NULL DEFAULT 0');
+  await pool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS images TEXT NOT NULL DEFAULT '[]'");
+  await pool.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_cents INTEGER NOT NULL DEFAULT 0');
+  await pool.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_percent INTEGER NOT NULL DEFAULT 0');
+  await pool.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS has_colors INTEGER NOT NULL DEFAULT 0');
+  await pool.query(`CREATE TABLE IF NOT EXISTS product_colors (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    hex TEXT DEFAULT '',
+    stock INTEGER NOT NULL DEFAULT 0,
+    position INTEGER NOT NULL DEFAULT 0
+  )`);
 
   await seed();
 }

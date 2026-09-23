@@ -51,8 +51,8 @@ router.post(
   requireAdmin,
   asyncHandler(async (req, res) => {
     const { password } = req.body || {};
-    if (!password || String(password).length < 4) {
-      return res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres' });
+    if (!password || String(password).length < 8) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
     }
     await db.run('INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value', [
       'admin_password_hash',

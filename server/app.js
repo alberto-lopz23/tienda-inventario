@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -12,11 +13,33 @@ import movementRoutes from './routes/movements.js';
 import orderRoutes from './routes/orders.js';
 import configRoutes from './routes/config.js';
 import { db } from './db.js';
+import { requireAdmin } from './middleware.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
-app.use(cors());
+app.set('trust proxy', true);
+
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: false
+  })
+);
+
+const FRONTEND_ORIGINS = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, cb) {
+      if (!origin || FRONTEND_ORIGINS.includes(origin)) return cb(null, true);
+      return cb(null, false);
+    }
+  })
+);
 app.use(express.json());
 
 const upload = multer({
@@ -33,11 +56,19 @@ const upload = multer({
   }
 });
 
-app.post('/api/admin/upload', upload.single('image'), async (req, res) => {
+const EXT_BY_MIME = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'image/avif': '.avif'
+};
+
+app.post('/api/admin/upload', requireAdmin, upload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No se recibió una imagen' });
   try {
     if (process.env.BLOB_READ_WRITE_TOKEN) {
-      const ext = path.extname(req.file.originalname) || '.jpg';
+      const ext = EXT_BY_MIME[req.file.mimetype] || '.jpg';
       const { url } = await put(`tienda/${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`, req.file.buffer, {
         access: 'public',
         contentType: req.file.mimetype
@@ -46,7 +77,7 @@ app.post('/api/admin/upload', upload.single('image'), async (req, res) => {
     }
     res.json({ url: `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}` });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error al subir la imagen' });
   }
 });
 
@@ -61,26 +92,14 @@ app.get('/api/health', async (req, res) => {
   const info = {
     ok: false,
     has_url: !!process.env.DATABASE_URL,
-    url_host: process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).host : null,
-    blob: !!process.env.BLOB_READ_WRITE_TOKEN,
-    node: process.version
+    blob: !!process.env.BLOB_READ_WRITE_TOKEN
   };
   try {
     const r = await db.get('SELECT 1 AS ok');
     info.ok = r && r.ok === 1;
-    info.tables = {};
-    for (const table of ['products', 'movements', 'orders', 'config']) {
-      const cols = await db.all(
-        "SELECT column_name FROM information_schema.columns WHERE table_name = ? AND table_schema = 'public' ORDER BY ordinal_position",
-        [table]
-      );
-      info.tables[table] = cols.map((c) => c.column_name);
-    }
-    const probe = await db.get('SELECT id FROM products ORDER BY id LIMIT 1');
-    info.id_probe = probe ? `ok (primera fila id=${probe.id})` : 'ok (tabla vacía)';
     res.json(info);
   } catch (err) {
-    info.error = err.message;
+    info.error = 'no_db';
     res.status(500).json(info);
   }
 });
@@ -110,7 +129,8 @@ app.use((err, req, res, next) => {
   if (err.code === 'LIMIT_FILE_SIZE') {
     return res.status(413).json({ error: 'La imagen es demasiado grande (máximo 8 MB)' });
   }
-  res.status(err.status || 500).json({ error: err.message || 'Error de servidor' });
+  const status = err.status || 500;
+  res.status(status).json({ error: status >= 500 ? 'Error de servidor' : err.message });
 });
 
 export default app;

@@ -35,7 +35,7 @@ export default function Stock() {
 
   function openAdjust(p) {
     setAdjusting(p);
-    setForm({ type: 'entrada', quantity: '', note: '' });
+    setForm({ type: 'entrada', quantity: '', note: '', color_id: '' });
     setError('');
   }
 
@@ -48,7 +48,7 @@ export default function Stock() {
     }
     await api(`/products/admin/${adjusting.id}/stock`, {
       method: 'POST',
-      body: JSON.stringify({ quantity, type: form.type, note: form.note })
+      body: JSON.stringify({ quantity, type: form.type, note: form.note, color_id: form.color_id || null })
     });
     setNotice(`Stock de "${adjusting.name}" actualizado ✓`);
     setAdjusting(null);
@@ -126,6 +126,19 @@ export default function Stock() {
                   <option value="ajuste">Ajuste (fijar cantidad)</option>
                 </select>
               </div>
+              {adjusting.has_colors && Array.isArray(adjusting.colors) && adjusting.colors.length > 0 && (
+                <div className="form-field">
+                  <span>Color</span>
+                  <select value={form.color_id || ''} onChange={(e) => setForm({ ...form, color_id: e.target.value || '' })}>
+                    <option value="">(stock general)</option>
+                    {adjusting.colors.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} — {c.stock} uds
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="form-field">
                 <span>Cantidad</span>
                 <input
