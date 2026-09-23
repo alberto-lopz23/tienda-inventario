@@ -101,15 +101,15 @@ export default function ProductDetail() {
             ) : (
               <>
                 <div className="detail-main-img">
-                  <div className="detail-track" style={{ width: `${images.length * 100}%`, transform: `translateX(-${imageIndex * 100}%)` }}>
+                  <div className="detail-track" style={{ transform: `translateX(-${imageIndex * 100}%)` }}>
                     {images.map((src, i) => (
                       <div className="detail-slide" key={i}><img src={src} alt={product.name} /></div>
                     ))}
                   </div>
                   {images.length > 1 && (
                     <>
-                      <button className="carousel-btn carousel-prev" onClick={() => go(imageIndex - 1)}>p</button>
-                      <button className="carousel-btn carousel-next" onClick={() => go(imageIndex + 1)}>n</button>
+                      <button className="carousel-btn carousel-prev" onClick={() => go(imageIndex - 1)}>‹</button>
+                      <button className="carousel-btn carousel-next" onClick={() => go(imageIndex + 1)}>›</button>
                       <div className="carousel-dots">
                         {images.map((_, i) => (
                           <span key={i} className={`carousel-dot ${i === imageIndex ? 'active' : ''}`} onClick={() => go(i)} />
@@ -182,9 +182,9 @@ export default function ProductDetail() {
 {out ? (
               <span className="stock-status stock-out" style={{ display: 'block', textAlign: 'center' }}>Agotado</span>
             ) : cartQty > 0 && qty <= cartQty ? (
-              <button className="btn btn-success btn-block" onClick={removeFromCart}>Quitar del carrito</button>
+              <button className="btn btn-success btn-block detail-cta" onClick={removeFromCart}>Quitar del carrito</button>
             ) : (
-              <button className="btn btn-primary btn-block" onClick={addToCart}>Agregar al carrito</button>
+              <button className="btn btn-primary btn-block detail-cta" onClick={addToCart}>Agregar al carrito</button>
             )}
           </div>
         </div>
