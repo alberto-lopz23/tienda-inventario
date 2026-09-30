@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import pg from 'pg';
-import { scryptSync, randomBytes, randomUUID, timingSafeEqual } from 'crypto';
+import { createHash, scryptSync, randomBytes, randomUUID, timingSafeEqual } from 'crypto';
 
 const { Pool } = pg;
 
@@ -13,6 +13,13 @@ const pool = new Pool({
   max: 3,
   connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000
+});
+
+// Un cliente que Neon/Vercel cierra por inactividad emite 'error' en el pool.
+// Sin este listener el proceso muere por 'unhandled error' y eso se traducía
+// en respuestas 5xx/401 que el cliente interpretaba como "sesión caducada".
+pool.on('error', (err) => {
+  console.warn('[db] cliente perdido:', err.message);
 });
 
 function convertPlaceholders(text) {
@@ -62,10 +69,35 @@ export async function getConfig(key) {
   return row ? row.value : null;
 }
 
+export function hashToken(token) {
+  return createHash('sha256').update(String(token)).digest('hex');
+}
+
+// Las sesiones viven en una tabla propia (no en `config`) para que:
+//   1. Que coexistan varias sesiones (pestaña + celular) sin que una cierre a la otra.
+//   2. Que un fallo transitorio de la BD no borre el token del cliente.
 export async function createAdminToken() {
+  await ensureInit();
   const token = randomUUID();
-  await setConfig('admin_token', token);
+  await rawRun('INSERT INTO admin_sessions (token_hash, last_seen_at) VALUES (?, now()) ON CONFLICT DO NOTHING', [
+    hashToken(token)
+  ]);
   return token;
+}
+
+export async function verifyAdminToken(token) {
+  if (!token) return false;
+  await ensureInit();
+  const row = await rawGet('SELECT 1 AS ok FROM admin_sessions WHERE token_hash = ?', [hashToken(token)]);
+  if (!row) return false;
+  rawRun('UPDATE admin_sessions SET last_seen_at = now() WHERE token_hash = ?', [hashToken(token)]).catch(() => {});
+  return true;
+}
+
+export async function revokeAdminToken(token) {
+  if (!token) return;
+  await ensureInit();
+  await rawRun('DELETE FROM admin_sessions WHERE token_hash = ?', [hashToken(token)]);
 }
 
 export function hashPassword(password) {
@@ -205,6 +237,22 @@ async function init() {
     stock INTEGER NOT NULL DEFAULT 0,
     position INTEGER NOT NULL DEFAULT 0
   )`);
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS admin_sessions (
+    token_hash TEXT PRIMARY KEY,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    last_seen_at TIMESTAMPTZ DEFAULT now()
+  )`);
+
+  // Migración: el token antiguo vivía en `config.admin_token`. Se traslada a la
+  // tabla de sesiones para no cerrar la sesión de quien ya está dentro.
+  const legacy = await pool.query('SELECT value FROM config WHERE key = $1', ['admin_token']);
+  if (legacy.rows[0] && legacy.rows[0].value) {
+    await pool.query('INSERT INTO admin_sessions (token_hash) VALUES ($1) ON CONFLICT DO NOTHING', [
+      createHash('sha256').update(String(legacy.rows[0].value)).digest('hex')
+    ]);
+    await pool.query('DELETE FROM config WHERE key = $1', ['admin_token']);
+  }
 
   await seed();
 }

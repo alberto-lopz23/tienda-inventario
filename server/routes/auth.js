@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db, verifyPassword, createAdminToken } from '../db.js';
+import { db, verifyPassword, createAdminToken, revokeAdminToken } from '../db.js';
 import { requireAdmin, asyncHandler } from '../middleware.js';
 
 const router = Router();
@@ -52,11 +52,20 @@ router.post(
   })
 );
 
+// El cliente lo usa para confirmar que su sesión sigue viva antes de cerrar sesión.
+router.get(
+  '/me',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    res.json({ ok: true });
+  })
+);
+
 router.post(
   '/logout',
   requireAdmin,
   asyncHandler(async (req, res) => {
-    await db.run('DELETE FROM config WHERE key = ?', ['admin_token']);
+    await revokeAdminToken(req.headers['x-admin-token']);
     res.json({ ok: true });
   })
 );

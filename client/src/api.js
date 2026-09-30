@@ -1,3 +1,25 @@
+const clearSession = () => {
+  localStorage.removeItem('admin_token');
+  localStorage.removeItem('admin_shop');
+  window.dispatchEvent(new Event('admin-session-cleared'));
+};
+
+// Un 401 aislado puede venir de la infra (Vercel/Neon despertando), no de una
+// sesión caducada. Antes de borrar el token confirmamos contra /admin/auth/me
+// y solo cerramos sesión si el servidor dice que el token ya no existe.
+async function confirmSessionExpired() {
+  const token = localStorage.getItem('admin_token');
+  if (!token) return false;
+  try {
+    const res = await fetch('/api/admin/auth/me', { headers: { 'x-admin-token': token } });
+    if (res.ok) return false;
+    if (res.status >= 500) return false;
+    return res.status === 401;
+  } catch {
+    return false;
+  }
+}
+
 export async function api(path, options = {}) {
   const headers = { ...(options.headers || {}) };
   if (options.body && !(options.body instanceof FormData)) {
@@ -7,9 +29,8 @@ export async function api(path, options = {}) {
   if (token) headers['x-admin-token'] = token;
 
   const res = await fetch(`/api${path}`, { ...options, headers });
-  if (res.status === 401) {
-    localStorage.removeItem('admin_token');
-    localStorage.removeItem('admin_shop');
+  if (res.status === 401 && (await confirmSessionExpired())) {
+    clearSession();
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Error de servidor');
