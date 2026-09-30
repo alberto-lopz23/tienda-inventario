@@ -42,6 +42,21 @@ export const salePriceCents = (priceCents, discountPercent = 0) => {
   return Math.round((Number(priceCents) || 0) * (100 - d) / 100);
 };
 
+export const colorPriceCents = (color, basePriceCents, discountPercent = 0) => {
+  const own = Math.max(0, Math.round(Number(color?.price_cents) || 0));
+  return salePriceCents(own > 0 ? own : basePriceCents, discountPercent);
+};
+
+export const centsToInput = (cents) => {
+  const n = Math.round((Number(cents) || 0) / 100);
+  return n > 0 ? String(n) : '';
+};
+
+export const inputToCents = (value) => {
+  const n = Number(String(value ?? '').replace(/[^\d.]/g, ''));
+  return Number.isFinite(n) ? Math.round(n * 100) : 0;
+};
+
 export const salePrice = (priceCents, discountPercent = 0) => money(salePriceCents(priceCents, discountPercent));
 
 export const money = (cents) =>

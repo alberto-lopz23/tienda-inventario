@@ -237,6 +237,9 @@ async function init() {
     stock INTEGER NOT NULL DEFAULT 0,
     position INTEGER NOT NULL DEFAULT 0
   )`);
+  await pool.query(
+    'ALTER TABLE product_colors ADD COLUMN IF NOT EXISTS price_cents INTEGER NOT NULL DEFAULT 0'
+  );
 
   await pool.query(`CREATE TABLE IF NOT EXISTS admin_sessions (
     token_hash TEXT PRIMARY KEY,

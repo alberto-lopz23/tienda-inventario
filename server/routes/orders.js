@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db, transaction } from '../db.js';
 import { requireAdmin, asyncHandler } from '../middleware.js';
+import { effectivePriceCents } from './products.js';
 
 const router = Router();
 
@@ -78,6 +79,7 @@ router.post(
           throw err;
         }
         const qty = Math.max(1, Math.round(Number(item.quantity) || 0));
+        let itemColor = null;
         if (item.color_id) {
           const color = await tx.get('SELECT * FROM product_colors WHERE id = ? AND product_id = ?', [item.color_id, p.id]);
           if (!color) {
@@ -90,6 +92,7 @@ router.post(
             err.status = 400;
             throw err;
           }
+          itemColor = color;
         } else if (p.has_colors) {
           const err = new Error(`Elige un color para: ${p.name}`);
           err.status = 400;
@@ -100,7 +103,7 @@ router.post(
           throw err;
         }
         const install = !!item.with_installation && !!p.requires_installation;
-        serverTotal += p.price_cents * qty + (install ? p.installation_price_cents * qty : 0);
+        serverTotal += effectivePriceCents(p, itemColor) * qty + (install ? p.installation_price_cents * qty : 0);
       }
       for (const item of list) {
         const p = await tx.get('SELECT * FROM products WHERE id = ?', [item.product_id]);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../../api.js';
+import { api, money } from '../../api.js';
 
 const fmtDate = (iso) => (iso ? iso.replace('T', ' ').slice(0, 16) : '');
 
@@ -8,9 +8,10 @@ export default function Stock() {
   const [products, setProducts] = useState([]);
   const [filter, setFilter] = useState('');
   const [adjusting, setAdjusting] = useState(null);
-  const [form, setForm] = useState({ type: 'entrada', quantity: '', note: '' });
+  const [form, setForm] = useState({ type: 'entrada', quantity: '', note: '', color_id: '' });
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [saving, setSaving] = useState(false);
 
   async function loadAll() {
     const [m, p] = await Promise.all([api('/admin/movements'), api('/products/admin/list')]);
@@ -37,24 +38,37 @@ export default function Stock() {
     setAdjusting(p);
     setForm({ type: 'entrada', quantity: '', note: '', color_id: '' });
     setError('');
+    setNotice('');
   }
 
   async function saveAdjust(e) {
     e.preventDefault();
+    setError('');
     const quantity = Math.round(Number(form.quantity));
     if (!(quantity > 0)) {
       setError('Ingresa una cantidad válida');
       return;
     }
-    await api(`/products/admin/${adjusting.id}/stock`, {
-      method: 'POST',
-      body: JSON.stringify({ quantity, type: form.type, note: form.note, color_id: form.color_id || null })
-    });
-    setNotice(`Stock de "${adjusting.name}" actualizado ✓`);
-    setAdjusting(null);
-    await loadAll();
-    await loadMovements();
+    setSaving(true);
+    try {
+      await api(`/products/admin/${adjusting.id}/stock`, {
+        method: 'POST',
+        body: JSON.stringify({ quantity, type: form.type, note: form.note, color_id: form.color_id || null })
+      });
+      setNotice(`Stock de "${adjusting.name}" actualizado ✓`);
+      setAdjusting(null);
+      await loadAll();
+      await loadMovements();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
   }
+
+  const visible = (filter ? products.filter((p) => String(p.id) === String(filter)) : products)
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <>
@@ -73,6 +87,55 @@ export default function Stock() {
       </div>
 
       {notice && <div className="alert alert-success" style={{ marginBottom: 12 }}>{notice}</div>}
+
+      <div className="card-panel" style={{ marginBottom: 16 }}>
+        <h3 style={{ marginTop: 0 }}>Productos</h3>
+        {visible.length === 0 ? (
+          <div className="empty-state">No hay productos.</div>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Stock</th>
+                <th>Por color</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((p) => (
+                <tr key={p.id}>
+                  <td data-label="Producto">{p.name}</td>
+                  <td data-label="Stock">
+                    <span className={`badge ${p.stock <= 0 ? 'badge-cancelado' : p.stock <= p.low_stock_threshold ? 'badge-pendiente' : 'badge-confirmado'}`}>
+                      {p.stock} uds
+                    </span>
+                  </td>
+                  <td data-label="Por color">
+                    {p.has_colors && p.colors && p.colors.length > 0 ? (
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {p.colors.map((c) => (
+                          <span key={c.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
+                            <span className="color-dot-swatch" style={{ background: c.hex || '#888' }} />
+                            {c.name}: {c.stock}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </td>
+                  <td data-label="Acciones">
+                    <button className="btn btn-ghost btn-sm" onClick={() => openAdjust(p)}>
+                      Ajustar stock
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
 
       <div className="card-panel">
         <h3 style={{ marginTop: 0 }}>Movimientos recientes</h3>
@@ -133,10 +196,13 @@ export default function Stock() {
                     <option value="">(stock general)</option>
                     {adjusting.colors.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name} — {c.stock} uds
+                        {c.name} — {c.stock} uds{c.price_cents > 0 ? ` · ${money(c.price_cents)}` : ''}
                       </option>
                     ))}
                   </select>
+                  <div className="muted" style={{ fontSize: 12 }}>
+                    Si el producto tiene colores, elige uno: el total se recalcula con la suma de sus colores.
+                  </div>
                 </div>
               )}
               <div className="form-field">
@@ -151,14 +217,16 @@ export default function Stock() {
               </div>
               <div className="form-field" style={{ gridColumn: '1 / -1' }}>
                 <span>Nota</span>
-                <input value={form.note} placeholder="Ej: reposición, merma..." onChange={(e) => setForm({ ...form, note: e.target.value })} />
+                <input value={form.note} placeholder="Ej: reposición, venta por WhatsApp, merma..." onChange={(e) => setForm({ ...form, note: e.target.value })} />
               </div>
               {error && <div className="alert alert-error" style={{ gridColumn: '1 / -1' }}>{error}</div>}
               <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setAdjusting(null)}>
                   Cancelar
                 </button>
-                <button className="btn btn-primary">Guardar</button>
+                <button className="btn btn-primary" disabled={saving}>
+                  {saving ? 'Guardando...' : 'Guardar'}
+                </button>
               </div>
             </form>
           </div>

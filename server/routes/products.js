@@ -9,6 +9,22 @@ const clampStock = (n) => Math.max(0, Math.round(Number(n) || 0));
 const clampDiscount = (n) => Math.max(0, Math.min(100, Math.round(Number(n) || 0)));
 const clampHex = (n) => /^#?[0-9a-fA-F]{3,8}$/.test(String(n || '').trim()) ? String(n).trim() : '';
 
+const sanitizeCategory = (v) => {
+  const s = String(v ?? '').trim();
+  if (!s || s === '__new__') return '';
+  return s;
+};
+
+export const salePriceCents = (priceCents, discountPercent = 0) => {
+  const d = Math.max(0, Math.min(100, Math.round(Number(discountPercent) || 0)));
+  return Math.max(0, Math.round((Number(priceCents) || 0) * (100 - d) / 100));
+};
+
+export const effectivePriceCents = (product, color) => {
+  const own = clampMoney(color?.price_cents);
+  return salePriceCents(own > 0 ? own : product?.price_cents, product?.discount_percent);
+};
+
 function parseImages(p) {
   let imgs = [];
   try {
@@ -31,7 +47,8 @@ function normalizeColors(arr) {
       id: c?.id ? Math.round(Number(c.id)) || undefined : undefined,
       name,
       hex: clampHex(c?.hex),
-      stock: clampStock(c?.stock)
+      stock: clampStock(c?.stock),
+      price_cents: clampMoney(c?.price_cents)
     });
   }
   return out;
@@ -60,13 +77,13 @@ async function saveColors(tx, productId, colors) {
     if (c.id && existingIds.has(c.id)) {
       keepIds.add(c.id);
       await tx.run(
-        'UPDATE product_colors SET name = ?, hex = ?, stock = ?, position = ? WHERE id = ? AND product_id = ?',
-        [c.name, c.hex, c.stock, pos, c.id, productId]
+        'UPDATE product_colors SET name = ?, hex = ?, stock = ?, position = ?, price_cents = ? WHERE id = ? AND product_id = ?',
+        [c.name, c.hex, c.stock, pos, c.price_cents, c.id, productId]
       );
     } else {
       const r = await tx.run(
-        'INSERT INTO product_colors (product_id, name, hex, stock, position) VALUES (?, ?, ?, ?, ?) RETURNING id',
-        [productId, c.name, c.hex, c.stock, pos]
+        'INSERT INTO product_colors (product_id, name, hex, stock, position, price_cents) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
+        [productId, c.name, c.hex, c.stock, pos, c.price_cents]
       );
       keepIds.add(r.lastInsertRowid);
     }
@@ -93,7 +110,13 @@ function serializePublic(p, colors = []) {
     installation_price_cents: p.installation_price_cents || 0,
     discount_percent: clampDiscount(p.discount_percent),
     has_colors: !!p.has_colors,
-    colors: (colors || []).map((c) => ({ id: c.id, name: c.name, hex: c.hex, stock: c.stock }))
+    colors: (colors || []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      hex: c.hex,
+      stock: c.stock,
+      price_cents: c.price_cents || 0
+    }))
   };
 }
 
@@ -184,7 +207,7 @@ router.post(
           String(b.name).trim(),
           String(b.description || ''),
           clampMoney(b.price_cents),
-          String(b.category || ''),
+          sanitizeCategory(b.category),
           images[0] || '',
           JSON.stringify(images),
           stock,
@@ -259,7 +282,7 @@ router.put(
           String(b.name ?? p.name).trim(),
           String(b.description ?? p.description),
           clampMoney(b.price_cents ?? p.price_cents),
-          String(b.category ?? p.category),
+          sanitizeCategory(b.category ?? p.category),
           images[0] || '',
           JSON.stringify(images),
           stock,

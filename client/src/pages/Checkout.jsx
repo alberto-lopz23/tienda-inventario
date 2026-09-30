@@ -114,10 +114,11 @@ export default function Checkout() {
                 const itemCents = item.price_cents * item.quantity;
                 const installCents = item.with_installation ? item.installation_price_cents * item.quantity : 0;
                 return (
-                  <div key={item.product_id} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                  <div key={`${item.product_id}:${item.color_id || ''}`} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
                     <div className="order-summary-row" style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                       <span>
                         {item.quantity}× {item.name}
+                        {item.color_name ? ` (${item.color_name})` : ''}
                       </span>
                       <strong>{money(itemCents)}</strong>
                     </div>

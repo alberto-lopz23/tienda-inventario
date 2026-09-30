@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { api, money, salePrice } from '../../api.js';
+import { api, money, salePrice, centsToInput, inputToCents } from '../../api.js';
 
 const BLANK_FORM = {
   name: '',
@@ -21,6 +21,24 @@ const BLANK_FORM = {
 };
 
 const emptyForm = () => ({ ...BLANK_FORM, images: [], colors: [] });
+
+const NEW_CATEGORY = '__new__';
+
+let colorSeq = 0;
+const newColorRow = (name = '', priceCents = 0) => ({
+  uid: `c${++colorSeq}`,
+  id: undefined,
+  name,
+  hex: '#888888',
+  stock: '0',
+  price: centsToInput(priceCents)
+});
+
+const normalizeCat = (s) =>
+  String(s || '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 
 const clampMoneyField = (v) => {
   const n = Number(String(v).replace(/[^\d.]/g, ''));
@@ -150,7 +168,12 @@ export default function Products() {
       installation_price: p.installation_price_cents ? (p.installation_price_cents / 100).toFixed(2) : '',
       has_colors: p.has_colors,
       colors: Array.isArray(p.colors)
-        ? p.colors.map((c) => ({ id: c.id, name: c.name, hex: c.hex || '', stock: String(c.stock) }))
+        ? p.colors.map((c) => ({
+            ...newColorRow(c.name, c.price_cents),
+            id: c.id,
+            hex: c.hex || '',
+            stock: String(c.stock)
+          }))
         : []
     });
     setEditing(p);
@@ -206,8 +229,11 @@ export default function Products() {
     });
   }
 
-  function addColorRow() {
-    setForm((f) => ({ ...f, colors: [...f.colors, { id: undefined, name: '', hex: '#888888', stock: '0' }] }));
+  function addColorRow(preset) {
+    setForm((f) => ({
+      ...f,
+      colors: [...f.colors, typeof preset === 'string' ? newColorRow(preset) : newColorRow()]
+    }));
   }
 
   function updateColor(idx, patch) {
@@ -232,15 +258,28 @@ export default function Products() {
       const discount = Math.round(Number(form.discount) || 0);
       if (discount < 0 || discount > 100) throw new Error('Descuento inválido (0–100%)');
 
+      let category = String(form.category || '').trim();
+      if (form.categoryMode === 'new') {
+        if (!category) throw new Error('Escribe el nombre de la nueva categoría');
+        const dup = allCats.find((c) => normalizeCat(c) === normalizeCat(category));
+        if (dup) throw new Error(`La categoría "${dup}" ya existe, selecciónala en la lista`);
+        category = category.charAt(0).toUpperCase() + category.slice(1);
+      }
+
+      if (form.has_colors) {
+        const sinNombre = form.colors.findIndex((c) => !String(c.name || '').trim());
+        if (sinNombre !== -1) {
+          throw new Error(`El color de la fila ${sinNombre + 1} no tiene nombre. Ponle un nombre o quítalo con ✕.`);
+        }
+      }
       const colors = form.has_colors
-        ? form.colors
-            .map((c) => ({
-              id: c.id,
-              name: String(c.name || '').trim(),
-              hex: parseHexField(c.hex, '#888888'),
-              stock: clampStock(c.stock)
-            }))
-            .filter((c) => c.name)
+        ? form.colors.map((c) => ({
+            id: c.id,
+            name: String(c.name || '').trim(),
+            hex: parseHexField(c.hex, '#888888'),
+            stock: clampStock(c.stock),
+            price_cents: inputToCents(c.price)
+          }))
         : [];
       if (form.has_colors && colors.length === 0) {
         throw new Error('Para usar colores agrega al menos un color');
@@ -266,7 +305,7 @@ export default function Products() {
         price_cents: price,
         cost_cents: cost,
         discount_percent: discount,
-        category: String(form.category || '').trim(),
+        category,
         image: images[0] || '',
         images,
         stock: bodyStock,
@@ -390,6 +429,7 @@ export default function Products() {
                             <span key={c.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginRight: 8 }}>
                               <span className="color-dot-swatch" style={{ background: c.hex || '#888' }} />
                               {c.name}: {c.stock}
+                              {c.price_cents > 0 && ` · ${money(c.price_cents)}`}
                             </span>
                           ))}
                         </div>
@@ -449,16 +489,34 @@ export default function Products() {
               </div>
               <div className="form-field">
                 <span>Categoría</span>
-                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                <select
+                  value={form.categoryMode === 'new' ? NEW_CATEGORY : form.category}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === NEW_CATEGORY) setForm({ ...form, categoryMode: 'new', category: '' });
+                    else setForm({ ...form, categoryMode: 'existing', category: v });
+                  }}
+                >
                   <option value="">Sin categoría</option>
                   {allCats.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
                   ))}
-                  <option value="__new__">➕ Nueva categoría...</option>
+                  <option value={NEW_CATEGORY}>➕ Nueva categoría...</option>
                 </select>
               </div>
+              {form.categoryMode === 'new' && (
+                <div className="form-field">
+                  <span>Nombre de la nueva categoría</span>
+                  <input
+                    autoFocus
+                    placeholder="Ej: Refrigeración"
+                    value={form.category}
+                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  />
+                </div>
+              )}
 
               <div className="card-panel" style={{ gridColumn: '1 / -1', padding: 14, margin: 0 }}>
                 <span style={{ fontWeight: 700, display: 'block', marginBottom: 8 }}>Imágenes ({form.images.length})</span>
@@ -485,24 +543,42 @@ export default function Products() {
               </div>
 
               <label className="form-field" style={{ gridColumn: '1 / -1', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <input type="checkbox" checked={form.has_colors} onChange={(e) => setForm({ ...form, has_colors: e.target.checked, colors: e.target.checked && form.colors.length === 0 ? [{ id: undefined, name: '', hex: '#888888', stock: '0' }] : form.colors })} />
+                <input type="checkbox" checked={form.has_colors} onChange={(e) => setForm({ ...form, has_colors: e.target.checked, colors: e.target.checked && form.colors.length === 0 ? [newColorRow()] : form.colors })} />
                 Este producto tiene colores
               </label>
 
               {form.has_colors && (
                 <div className="card-panel" style={{ gridColumn: '1 / -1', padding: 14, margin: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ fontWeight: 700 }}>Colores y stock</span>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={addColorRow}>➕ Agregar color</button>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+                    <span style={{ fontWeight: 700 }}>
+                      Colores y stock {form.colors.length > 0 && `· stock total ${form.colors.reduce((s, c) => s + clampStock(c.stock), 0)}`}
+                    </span>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => addColorRow()}>➕ Agregar color</button>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => addColorRow('FIBRA')}>➕ Fibra</button>
+                    </div>
                   </div>
+                  {form.colors.length === 0 && (
+                    <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+                      Aún no hay colores. Agrega al menos uno para poder guardar el producto.
+                    </div>
+                  )}
                   {form.colors.map((c, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+                    <div
+                      key={c.uid || c.id || idx}
+                      style={{ display: 'grid', gridTemplateColumns: '44px minmax(90px,1fr) 74px 92px auto', gap: 8, alignItems: 'center', marginBottom: 8 }}
+                    >
                       <input type="color" value={/^#[0-9a-f]{6}$/i.test(c.hex) ? c.hex : '#888888'} onChange={(e) => updateColor(idx, { hex: e.target.value })} style={{ width: 44, padding: 2, height: 38 }} />
-                      <input placeholder="Color (ej: Rojo)" value={c.name} onChange={(e) => updateColor(idx, { name: e.target.value })} style={{ flex: 1, minWidth: 120 }} />
-                      <input type="number" min="0" placeholder="Stock" value={c.stock} onChange={(e) => updateColor(idx, { stock: e.target.value })} style={{ width: 80 }} />
+                      <input placeholder="Color (ej: Rojo)" value={c.name} onChange={(e) => updateColor(idx, { name: e.target.value })} />
+                      <input type="number" min="0" placeholder="Stock" value={c.stock} onChange={(e) => updateColor(idx, { stock: e.target.value })} />
+                      <input type="number" min="0" step="0.01" placeholder="Precio" value={c.price} onChange={(e) => updateColor(idx, { price: e.target.value })} title="Precio propio de este color. Vacío = precio del producto." />
                       <button type="button" className="btn btn-danger btn-sm" onClick={() => removeColor(idx)} title="Quitar color">✕</button>
                     </div>
                   ))}
+                  <div className="muted" style={{ fontSize: 12 }}>
+                    El precio es opcional: si lo dejas vacío el color usa el precio del producto. La suma del stock de los
+                    colores es el stock total.
+                  </div>
                 </div>
               )}
 

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { colorPriceCents, salePriceCents } from '../api.js';
 
 const CartContext = createContext(null);
 const STORAGE_KEY = 'tienda_cart_v2';
@@ -45,12 +46,19 @@ export function CartProvider({ children }) {
       const color_name = color?.name || '';
       const color_hex = color?.hex || '';
       const stock = color_id ? color.stock : product.stock;
+      const listCents = colorPriceCents(color, product.price_cents, product.discount_percent);
       const key = lineKey(product.id, color_id);
       const existing = prev.find((i) => lineKey(i.product_id, i.color_id) === key);
       if (existing) {
         return prev.map((i) =>
           lineKey(i.product_id, i.color_id) === key
-            ? { ...i, quantity: Math.min(i.quantity + qty, stock || i.stock), stock: stock ?? i.stock }
+            ? {
+                ...i,
+                quantity: Math.min(i.quantity + qty, stock || i.stock),
+                stock: stock ?? i.stock,
+                price_cents: listCents,
+                list_price_cents: salePriceCents(product.price_cents, product.discount_percent)
+              }
             : i
         );
       }
@@ -60,8 +68,8 @@ export function CartProvider({ children }) {
         color_name,
         color_hex,
         name: product.name,
-        price_cents: product.price_cents,
-        list_price_cents: product.list_price_cents || product.price_cents,
+        price_cents: listCents,
+        list_price_cents: salePriceCents(product.price_cents, product.discount_percent),
         discount_percent: product.discount_percent || 0,
         image: product.image,
         quantity: Math.min(qty, stock),

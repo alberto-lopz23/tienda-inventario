@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { money, salePriceCents } from '../api.js';
+import { money, salePriceCents, colorPriceCents } from '../api.js';
 import { useCart } from '../context/CartContext.jsx';
 
 function sampleBg(img, setBg) {
@@ -60,6 +60,14 @@ export default function ProductCard({ product }) {
   const detailPath = `/producto/${product.id}`;
   const needsColor = product.has_colors && Array.isArray(product.colors) && product.colors.length > 0;
   const inCart = items.some((i) => i.product_id === product.id && !i.color_id);
+  const colorPrices = needsColor
+    ? product.colors.map((c) => colorPriceCents(c, product.price_cents, product.discount_percent))
+    : [];
+  const minColorCents = colorPrices.length ? Math.min(...colorPrices) : 0;
+  const hasColorRange = colorPrices.length > 1 && minColorCents !== saleCents;
+  const colorsWithOwnPrice = needsColor
+    ? product.colors.filter((c) => Math.max(0, Math.round(Number(c.price_cents) || 0)) > 0).length
+    : 0;
 
   const addToCart = () => {
     if (out || needsColor) return;
@@ -92,10 +100,24 @@ export default function ProductCard({ product }) {
         </Link>
         {product.description && <p className="card-desc">{product.description}</p>}
         <div className="card-price">
-          {discounted && <span className="price-orig">{money(product.price_cents)}</span>}{' '}
-          {money(saleCents)}
-          {discounted && <span className="price-discount-badge">−{product.discount_percent}%</span>}
+          {hasColorRange ? (
+            <>
+              <span className="muted" style={{ fontSize: 12 }}>Desde </span>
+              {money(minColorCents)}
+            </>
+          ) : (
+            <>
+              {discounted && <span className="price-orig">{money(product.price_cents)}</span>}{' '}
+              {money(saleCents)}
+              {discounted && <span className="price-discount-badge">−{product.discount_percent}%</span>}
+            </>
+          )}
         </div>
+        {colorsWithOwnPrice > 0 && (
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            {colorsWithOwnPrice} {colorsWithOwnPrice === 1 ? 'variante con' : 'variantes con'} precio propio
+          </div>
+        )}
         {out ? (
           <span className="stock-status stock-out">Agotado</span>
         ) : (

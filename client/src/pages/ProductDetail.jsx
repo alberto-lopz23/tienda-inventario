@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api, money, salePriceCents, salePrice } from '../api.js';
+import { api, money, salePriceCents, colorPriceCents } from '../api.js';
 import { useCart } from '../context/CartContext.jsx';
 import Header from '../components/Header.jsx';
 
@@ -23,8 +23,14 @@ export default function ProductDetail() {
   const selected = color || null;
   const stock = selected ? selected.stock : product ? product.stock : 0;
   const out = stock <= 0;
-  const saleCents = salePriceCents(product ? product.price_cents : 0, product ? product.discount_percent : 0);
-  const discounted = saleCents !== (product ? product.price_cents : 0);
+  const baseSaleCents = salePriceCents(product ? product.price_cents : 0, product ? product.discount_percent : 0);
+  const unitCents = selected
+    ? colorPriceCents(selected, product ? product.price_cents : 0, product ? product.discount_percent : 0)
+    : baseSaleCents;
+  // El tachado y el badge son solo del descuento del producto: un color con
+  // precio propio no es un descuento y no debe pintar un "-0%".
+  const discounted = !!product && Number(product.discount_percent) > 0 && baseSaleCents !== product.price_cents;
+  const colorHasOwnPrice = !!selected && Math.max(0, Math.round(Number(selected.price_cents) || 0)) > 0;
 
   useEffect(() => {
     let alive = true;
@@ -136,27 +142,33 @@ export default function ProductDetail() {
 
             <div className="detail-price">
               {discounted && <span className="price-orig">{money(product.price_cents)}</span>}{' '}
-              {money(saleCents)}
+              {money(unitCents)}
               {discounted && <span className="price-discount-badge">-{product.discount_percent}%</span>}
+              {colorHasOwnPrice && <div className="muted" style={{ fontSize: 12, fontWeight: 400 }}>Precio del color {selected.name}</div>}
             </div>
 
             {product.has_colors && Array.isArray(product.colors) && product.colors.length > 0 && (
               <div className="detail-colors">
                 <div className="detail-label">Color: <strong>{selected ? selected.name : 'Elige uno'}</strong></div>
                 <div className="color-swatches">
-                  {product.colors.map((c) => (
-                    <button
-                      key={c.id}
-                      className={`color-swatch-bar ${selected && selected.id === c.id ? 'active' : ''}`}
-                      onClick={() => setColor({ ...c })}
-                      disabled={c.stock <= 0}
-                      title={c.stock <= 0 ? `${c.name} (agotado)` : c.name}
-                    >
-                      <span className="color-swatch-dot" style={{ background: c.hex || '#888' }} />
-                      <span className="color-swatch-name">{c.name}</span>
-                      {c.stock <= 0 && <span className="color-swatch-stock">Agotado</span>}
-                    </button>
-                  ))}
+                  {product.colors.map((c) => {
+                    const cCents = colorPriceCents(c, product.price_cents, product.discount_percent);
+                    const cOwn = Math.max(0, Math.round(Number(c.price_cents) || 0)) > 0;
+                    return (
+                      <button
+                        key={c.id}
+                        className={`color-swatch-bar ${selected && selected.id === c.id ? 'active' : ''}`}
+                        onClick={() => setColor({ ...c })}
+                        disabled={c.stock <= 0}
+                        title={c.stock <= 0 ? `${c.name} (agotado)` : `${c.name} — ${money(cCents)}`}
+                      >
+                        <span className="color-swatch-dot" style={{ background: c.hex || '#888' }} />
+                        <span className="color-swatch-name">{c.name}</span>
+                        {cOwn && <span className="color-swatch-price">{money(cCents)}</span>}
+                        {c.stock <= 0 && <span className="color-swatch-stock">Agotado</span>}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

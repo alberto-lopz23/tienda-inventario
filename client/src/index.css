@@ -1212,6 +1212,61 @@ select option {
   flex-shrink: 0;
 }
 
+.color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.color-swatch-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.color-swatch-bar:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+
+.color-swatch-bar.active {
+  border-color: var(--primary);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.color-swatch-bar:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.color-swatch-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  flex-shrink: 0;
+}
+
+.color-swatch-price {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.color-swatch-stock {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
 .login-wrap {
   min-height: 100vh;
   display: flex;
