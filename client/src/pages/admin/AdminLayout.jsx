@@ -56,19 +56,29 @@ export default function AdminLayout() {
   return (
     <div className="admin-layout">
       <aside className="admin-sidebar">
-        <span className="logo">Admin</span>
-        {links.map((l) => (
-          <NavLink key={l.to} to={l.to} end={l.to === '/admin'} className={({ isActive }) => `admin-link ${isActive ? 'active' : ''}`}>
-            {l.label}
-          </NavLink>
-        ))}
-        <span style={{ flex: 1 }} />
-        <Link to="/" className="admin-link">
-          🌐 Ver tienda
-        </Link>
-        <button className="admin-link" onClick={logout} style={{ background: 'none', border: 'none', textAlign: 'left' }}>
-          🚪 Salir
-        </button>
+        <div className="admin-sidebar-head">
+          <span className="admin-sidebar-title">Admin</span>
+        </div>
+        <nav className="admin-nav">
+          {links.map((l) => (
+            <NavLink
+              key={l.to}
+              to={l.to}
+              end={l.to === '/admin'}
+              className={({ isActive }) => `admin-link ${isActive ? 'active' : ''}`}
+            >
+              {l.label}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="admin-sidebar-foot">
+          <Link to="/" className="admin-link">
+            🌐 Ver tienda
+          </Link>
+          <button type="button" className="admin-link admin-logout" onClick={logout}>
+            🚪 Salir
+          </button>
+        </div>
       </aside>
       <main className="admin-main">
         <Outlet />
